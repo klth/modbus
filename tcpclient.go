@@ -36,17 +36,17 @@ type TCPClientHandler struct {
 func NewTCPClientHandler(address string) *TCPClientHandler {
 	h := &TCPClientHandler{}
 	h.Address = address
-	h.SourceAddress.ip = ""
+	h.SrcAddr = ""
 	h.Timeout = tcpTimeout
 	h.IdleTimeout = tcpIdleTimeout
 	return h
 }
 
 // NewTCPClientHandler allocates a new TCPClientHandler.
-func NewTCPClientHandlerWithSourceAddress(target string, source string) *TCPClientHandler {
+func NewTCPClientHandlerWithSrcAddr(target string, source string) *TCPClientHandler {
 	h := &TCPClientHandler{}
 	h.Address = target
-	h.SourceAddress.ip = source
+	h.SrcAddr = source
 	h.Timeout = tcpTimeout
 	h.IdleTimeout = tcpIdleTimeout
 	return h
@@ -137,23 +137,12 @@ func (mb *tcpPackager) Decode(adu []byte) (pdu *ProtocolDataUnit, err error) {
 	return
 }
 
-type tcpLocalAddress struct {
-	ip string
-}
-
-func (t tcpLocalAddress) Network() string {
-	return "tcp"
-}
-func (t tcpLocalAddress) String() string {
-	return t.ip
-}
-
 // tcpTransporter implements Transporter interface.
 type tcpTransporter struct {
 	// Connect string
 	Address string
 	// Source Address string
-	SourceAddress tcpLocalAddress
+	SrcAddr string
 	// Connect & Read timeout
 	Timeout time.Duration
 	// Idle timeout to close the connection
@@ -232,8 +221,11 @@ func (mb *tcpTransporter) Connect() error {
 func (mb *tcpTransporter) connect() error {
 	if mb.conn == nil {
 		dialer := net.Dialer{Timeout: mb.Timeout}
-		if mb.SourceAddress.ip != "" {
-			dialer.LocalAddr = mb.SourceAddress
+		if mb.SrcAddr != "" {
+			dialer.LocalAddr = &net.TCPAddr{
+				IP:   net.ParseIP(mb.SrcAddr),
+				Port: 0,
+			}
 		}
 		conn, err := dialer.Dial("tcp", mb.Address)
 		if err != nil {
